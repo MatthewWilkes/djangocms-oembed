@@ -95,3 +95,33 @@ class OembedVideoPlugin(CMSPlugin):
         self.data = data
 
 
+class OembedRichPlugin(CMSPlugin):
+    oembed_url = models.URLField(verbose_name=_('url'))
+
+    # cached oembed data
+    type = models.CharField(max_length=255, blank=True, default='')
+    provider = models.CharField(max_length=255, blank=True, default='')
+    data = models.TextField(blank=True, default='')
+    html = models.TextField(blank=True, default='')
+
+    def __unicode__(self):
+        return u"%s" % self.provider
+
+    def clean(self):
+        extra = {}
+
+        try:
+            data = providers.request(self.oembed_url, **extra)
+        except ProviderNotFoundException, e:
+            raise ValidationError(e.message)
+        except ProviderException, e:
+            raise ValidationError(e.message)
+        if not data['type'] == 'rich':
+            raise ValidationError('This must be an url for rich content. The "%(type)s" type is not supported.' % {'type': data['type']},)
+        
+        self.type = data.get('type', '')
+        self.provider = data.get('provider_name', '')
+        html = data.get('html', '')
+        
+        self.html = html
+        self.data = data
